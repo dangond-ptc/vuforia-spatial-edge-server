@@ -7,13 +7,15 @@ const availableModules = require('../libraries/availableModules');
  *
  * @constructor
  */
-function Node(name, type) {
+function Node(name, type, objectId, frameId, nodeId) {
     // the name of each link. It is used in the Reality Editor to show the IO name.
     this.name = name || '';
     // the ID of the containing object.
-    this.objectId = null;
+    this.objectId = objectId;
     // the ID of the containing frame.
-    this.frameId = null;
+    this.frameId = frameId;
+    // the ID of this node.
+    this.uuid = nodeId;
     // the actual data of the node
     this.data = new Data();
     // Reality Editor: This is used to position the UI element within its x axis in 3D Space. Relative to Marker origin.
@@ -44,6 +46,39 @@ function Node(name, type) {
         this.privateData = nodeTemplate.properties.privateData || {};
         this.publicData = nodeTemplate.properties.publicData || {};
     }
+
+    this.setupProgram();
 }
+
+/**
+ * Triggers the exports.setup function defined in the add-on for this node type
+ */
+Node.prototype.setupProgram = function() {
+    let nodeTypes = availableModules.getNodes();
+    if (typeof nodeTypes[this.type] === 'undefined') {
+        console.warn('Trying to setup an unsupported node type (' + this.type + ')');
+    } else {
+        let nodeTemplate = nodeTypes[this.type];
+        if (typeof nodeTemplate.setup === 'function') {
+            nodeTemplate.setup(this.objectId, this.frameId, this.uuid, this);
+        }
+    }
+};
+
+/**
+ * Should be called before deleting this node
+ * Triggers the exports.onRemove function defined in the add-on for this node type
+ */
+Node.prototype.deconstruct = function() {
+    let nodeTypes = availableModules.getNodes();
+    if (typeof nodeTypes[this.type] === 'undefined') {
+        console.warn('Trying to deconstruct an unsupported node type (' + this.type + ')');
+    } else {
+        let nodeTemplate = nodeTypes[this.type];
+        if (typeof nodeTemplate.onRemove === 'function') {
+            nodeTemplate.onRemove(this.objectId, this.frameId, this.uuid, this);
+        }
+    }
+};
 
 module.exports = Node;

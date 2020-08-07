@@ -60,6 +60,7 @@ var ip = require('ip');       // get the device IP address library
 var dgram = require('dgram'); // UDP Broadcasting library
 var os = require('os');
 var path = require('path');
+const ObjectModel = require('../models/ObjectModel.js');
 
 var hardwareInterfaces = {};
 
@@ -572,17 +573,24 @@ exports.updateObject = function (objectName, objects) {
                         delete objects[tempFolderName].links;
                     }
 
-
-                    for (var nodeKey in objects[tempFolderName].frames[tempFolderName].nodes) {
-
-                        if (typeof objects[tempFolderName].nodes[nodeKey].item !== 'undefined') {
-                            var tempItem = objects[tempFolderName].frames[tempFolderName].nodes[nodeKey].item;
-                            objects[tempFolderName].frames[tempFolderName].nodes[nodeKey].data = tempItem[0];
+                    for (var frameKey in objects[tempFolderName].frames) {
+                        for (var nodeKey in objects[tempFolderName].frames[frameKey].nodes) {
+                            if (typeof objects[tempFolderName].frames[frameKey].nodes[nodeKey].item !== 'undefined') {
+                                var tempItem = objects[tempFolderName].frames[frameKey].nodes[nodeKey].item;
+                                objects[tempFolderName].frames[tempFolderName].nodes[nodeKey].data = tempItem[0];
+                            }
                         }
                     }
 
-                    console.log('I found objects that I want to add');
+                    // cast everything from JSON to Object, Frame, and Node classes
+                    let newObj = new ObjectModel(objects[tempFolderName].ip,
+                        objects[tempFolderName].version,
+                        objects[tempFolderName].protocol,
+                        objects[tempFolderName].objectId);
+                    newObj.setFromJson(objects[tempFolderName]);
+                    objects[tempFolderName] = newObj;
 
+                    console.log('I found objects that I want to add');
 
                 } catch (e) {
                     objects[tempFolderName].ip = ip.address();
@@ -636,7 +644,7 @@ exports.loadHardwareInterface = function (hardwareInterfaceName) {
         hardwareInterfaces[hardwareInterfaceName] = fileContentsJson;
 
     } catch (e) {
-        console.log('Could not Load: ' + hardwareInterfaceName);
+        console.log('Could not load settings.json for: ' + hardwareInterfaceName);
         hardwareInterfaces[hardwareInterfaceName] = {};
     }
 

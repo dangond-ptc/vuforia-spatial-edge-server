@@ -146,6 +146,11 @@ exports.clearObject = function (objectUuid, toolUuid) {
         for (var key in objects[objectID].frames[objectID].nodes) {
             if (!hardwareObjects[objectUuid].nodes.hasOwnProperty(key)) {
                 console.log('Deleting: ' + objectID + '   ' + objectID + '   ' + key);
+                try {
+                    objects[objectID].frames[toolUuid].nodes[key].deconstruct();
+                } catch (e) {
+                    console.warn('Node exists without proper prototype: ' + key);
+                }
                 delete objects[objectID].frames[toolUuid].nodes[key];
             }
         }
@@ -163,6 +168,11 @@ exports.removeAllNodes = function (object, tool) {
                 for (var nodeKey in objects[objectID].frames[frameID].nodes) {
                     deleteLinksToAndFromNode(objectID, frameID, nodeKey);
                     if (!objects[objectID].frames[frameID].nodes.hasOwnProperty(nodeKey)) continue;
+                    try {
+                        objects[objectID].frames[frameID].nodes[nodeKey].deconstruct();
+                    } catch (e) {
+                        console.warn('Node exists without proper prototype: ' + nodeKey);
+                    }
                     delete objects[objectID].frames[frameID].nodes[nodeKey];
                 }
             }
@@ -404,7 +414,7 @@ exports.setTool = function (object, tool, newTool, dirName) {
                     }
                 }
                 if (!objects[objectID].frames.hasOwnProperty(frameUuid)) {
-                    objects[objectID].frames[frameUuid] = new Frame();
+                    objects[objectID].frames[frameUuid] = new Frame(objectID, frameUuid);
                 }
                 //define the tool that is used with this frame
                 objects[objectID].frames[frameUuid].tool = {addon: addonName, interface: interfaceName, tool: newTool};
@@ -437,11 +447,9 @@ exports.addNode = function (object, tool, node, type, position) {
         utilities.createFolder(object, objectsPath, globalVariables.debug);
 
         // create a new anchor object
-        objects[objectID] = new ObjectModel(services.ip, version, protocol);
+        objects[objectID] = new ObjectModel(services.ip, version, protocol, objectID);
         objects[objectID].port = serverPort;
         objects[objectID].name = object;
-        objects[objectID].ip = services.ip;
-        objects[objectID].objectId = objectID;
         objects[objectID].isAnchor = true;
         objects[objectID].matrix = [
             1, 0, 0, 0,
@@ -473,7 +481,7 @@ exports.addNode = function (object, tool, node, type, position) {
             objects[objectID].name = object;
 
             if (!objects[objectID].frames.hasOwnProperty(frameUuid)) {
-                objects[objectID].frames[frameUuid] = new Frame();
+                objects[objectID].frames[frameUuid] = new Frame(objectID, frameUuid);
                 utilities.createFrameFolder(object, tool, dirnameO, objectsPath, globalVariables.debug, 'local');
             } else {
                 utilities.createFrameFolder(object, tool, dirnameO, objectsPath, globalVariables.debug, objects[objectID].frames[frameUuid].location);
@@ -488,7 +496,7 @@ exports.addNode = function (object, tool, node, type, position) {
             var thisObject;
 
             if (!objects[objectID].frames[frameUuid].nodes.hasOwnProperty(nodeUuid)) {
-                objects[objectID].frames[frameUuid].nodes[nodeUuid] = new Node(node, type);
+                objects[objectID].frames[frameUuid].nodes[nodeUuid] = new Node(node, type, objectID, frameUuid, nodeUuid);
                 thisObject = objects[objectID].frames[frameUuid].nodes[nodeUuid];
                 thisObject.x = utilities.randomIntInc(0, 200) - 100;
                 thisObject.y = utilities.randomIntInc(0, 200) - 100;
@@ -503,8 +511,6 @@ exports.addNode = function (object, tool, node, type, position) {
             }
 
             thisObject = objects[objectID].frames[frameUuid].nodes[nodeUuid];
-            thisObject.frameId = frameUuid;
-            thisObject.objectId = objectID;
             thisObject.text = undefined;
 
             console.log('added node', {
@@ -598,6 +604,12 @@ exports.removeNode = function (object, tool, node) {
             if (objects[objectID].frames.hasOwnProperty(frameID)) {
                 if (objects[objectID].frames[frameID].nodes.hasOwnProperty(nodeID)) {
                     deleteLinksToAndFromNode(objectID, frameID, nodeID);
+                    let thisNode = objects[objectID].frames[frameID].nodes[nodeID];
+                    try {
+                        thisNode.deconstruct();
+                    } catch (e) {
+                        console.warn('Node exists without proper prototype: ' + nodeID);
+                    }
                     delete objects[objectID].frames[frameID].nodes[nodeID];
                 }
             }
